@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dobot Control via UART</title>
+</head>
+<body>
+    <button id="connect">连接到Dobot</button>
+    <button id="sendCommand" disabled>发送UART命令</button>
+    <script>
+        const connectButton = document.getElementById('connect');
+        const sendCommandButton = document.getElementById('sendCommand');
+
+        let port, writer;
+
+        async function connectSerial() {
+            if ('serial' in navigator) {
+                try {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 }); // 根据Dobot的波特率来设置
+                    writer = port.writable.getWriter();
+                    connectButton.disabled = true;
+                    sendCommandButton.disabled = false;
+                    console.log('串行端口已连接');
+                } catch (e) {
+                    console.error('无法打开串行端口', e);
+                }
+            } else {
+                alert('您的浏览器不支持WebSerial API');
+            }
+        }
+
+        async function sendUARTCommand() {
+            if (writer) {
+                const data = new Uint8Array([170, 170, 6, 31, 3, 0, 0, 0, 0, 222]); // 将您的命令字符串替换为具体的UART命令
+                await writer.write(data);
+                console.log('命令已发送');
+            }
+        }
+
+        connectButton.addEventListener('click', connectSerial);
+        sendCommandButton.addEventListener('click', sendUARTCommand);
+    </script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dobot Control via UART</title>
+</head>
+<body>
+    <button id="connect">连接到Dobot</button> 
+    z:<input type="number" id="zInput" value=0><br>
+    <canvas id="myCanvas" width="1000" height="500" style="border:1px solid #000000;">  
+    </canvas>
+    <div id="coordinates">Coordinates: (0, 0)</div> <!-- 用于显示坐标的元素 -->
+
+    
+</body>
+<script>
+    const connectButton = document.getElementById('connect');
+    const zInput = document.getElementById('zInput');
+    const canvas = document.getElementById('myCanvas');
+    const coordinatesDiv = document.getElementById('coordinates');
+
+    let port, writer;
+    var uartCommand
+
+
+    async function connectSerial() {
+            if ('serial' in navigator) {
+                try {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 }); // 根据Dobot的波特率来设置
+                    writer = port.writable.getWriter();
+                    connectButton.disabled = true;
+                    sendCommandButton.disabled = false;
+                    console.log('串行端口已连接');
+                } catch (e) {
+                    console.error('无法打开串行端口', e);
+                }
+            } else {
+                alert('您的浏览器不支持WebSerial API');
+            }
+        }
+
+
+    var c = document.getElementById("myCanvas");
+    var ctx = c.getContext("2d");
+    var n=0,cx0,cy0
+    var b0=0 // mouse press 
+    var dz // dobot height
+
+    connectButton.addEventListener('click', connectSerial);
+    canvas.addEventListener('mousemove', function(event) {
+        console.log(event)
+        const rect = canvas.getBoundingClientRect(); // 获取canvas的边界，以便计算正确的坐标
+        const cx = event.clientX - rect.left; // 计算相对于canvas左边界的X坐标
+        const cy = event.clientY - rect.top; // 计算相对于canvas上边界的Y坐标
+        // 更新坐标显示
+        coordinatesDiv.textContent = `${n},canvasCoordinates: (${cx}, ${cy})`;
+
+        // Dobot 手臂座標
+        var dx=-cy*0.2+300
+        var dy=-cx*0.2+100
+        coordinatesDiv.textContent += `DobotCoordinates: (${dx}, ${dy})`;
+
+        if(event.buttons==1){
+            if(b0==0){
+                cx0=cx , cy0=cy
+                moveToPoint(dx,dy,dz-(-10),0)
+                moveToPoint(dx,dy,dz,0)
+            }
+            moveToPoint(dx,dy,dz,0)
+
+            ctx.moveTo(cx0, cy0);
+            ctx.lineTo(cx, cy);
+            ctx.stroke();
+            cx0=cx , cy0=cy
+            n+=1,b0=1
+        }else{
+            if(b0==1){
+                cx0=cx , cy0=cy
+                moveToPoint(dx,dy,dz-(-10),0)
+            }
+            b0=0
+        }
+    });
+
+
+    async function moveToPoint(x,y,z,r) {
+        console.log(x,y,z,r)
+        uartCommand = [170, 170];
+        const length = 19;
+        const ID = 84;
+        const Ctrl = 3;
+        const ptpmode = 1;
+
+        // 将浮点数转换为字节的函数
+        function floatToBytes(float) {
+        let buffer = new ArrayBuffer(4); // Float32需要4字节
+        let view = new DataView(buffer);
+        view.setFloat32(0, float, false); // 使用大端字节序
+        return Array.from(new Uint8Array(buffer)).reverse(); // 转换为字节数组并反转以匹配Python示例中的小端字节序
+        }
+
+        const Dx = floatToBytes(x);
+        const Dy = floatToBytes(y);
+        const Dz = floatToBytes(z);
+        const Dr = floatToBytes(r);
+
+        const payload = [ID, Ctrl, ptpmode].concat(Dx, Dy, Dz, Dr);
+
+        let Checksum = 256 - payload.reduce((a, b) => a + b, 0) & 0xff;
+
+        uartCommand.push(length);
+        uartCommand.push(...payload, Checksum);
+
+        console.log(uartCommand);
+
+        if (writer) {
+        const data = new Uint8Array(uartCommand); // 将您的命令字符串替换为具体的UART命令
+        await writer.write(data);
+        console.log('命令已发送');
+        }
+    }
+
+    function changeZ(){
+        dz = zInput.value-10;
+        dz+=10
+        console.log(dz)
+        moveToPoint(200,0,dz,0)
+    }
+
+    zInput.addEventListener('input',changeZ)
+
+</script>
