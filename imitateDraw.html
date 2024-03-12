@@ -31,7 +31,7 @@
                     await port.open({ baudRate: 115200 }); // 根据Dobot的波特率来设置
                     writer = port.writable.getWriter();
                     connectButton.disabled = true;
-                    sendCommandButton.disabled = false;
+                    // sendCommandButton.disabled = false;
                     console.log('串行端口已连接');
                 } catch (e) {
                     console.error('无法打开串行端口', e);
@@ -46,11 +46,12 @@
     var ctx = c.getContext("2d");
     var n=0,cx0,cy0
     var b0=0 // mouse press 
-    var dz // dobot height
+    var dz=0 // dobot height
 
     connectButton.addEventListener('click', connectSerial);
+
     canvas.addEventListener('mousemove', function(event) {
-        console.log(event)
+        // console.log(event)
         const rect = canvas.getBoundingClientRect(); // 获取canvas的边界，以便计算正确的坐标
         const cx = event.clientX - rect.left; // 计算相对于canvas左边界的X坐标
         const cy = event.clientY - rect.top; // 计算相对于canvas上边界的Y坐标
@@ -63,22 +64,39 @@
         coordinatesDiv.textContent += `DobotCoordinates: (${dx}, ${dy})`;
 
         if(event.buttons==1){
+            // 剛點下去
             if(b0==0){
                 cx0=cx , cy0=cy
+                // contour.push([cx,cy])
+                moveToPoint(200,0,dz-(-10),0)
                 moveToPoint(dx,dy,dz-(-10),0)
                 moveToPoint(dx,dy,dz,0)
             }
-            moveToPoint(dx,dy,dz,0)
-
-            ctx.moveTo(cx0, cy0);
-            ctx.lineTo(cx, cy);
-            ctx.stroke();
-            cx0=cx , cy0=cy
+            // moveToPoint(dx,dy,dz,0)
+            // ctx.moveTo(cx0, cy0);
+            // ctx.lineTo(cx, cy);
+            // ctx.stroke();
+            // cx0=cx , cy0=cy
             n+=1,b0=1
-        }else{
-            if(b0==1){
+
+            if(n%10==0){
+                // contour.push([cx,cy])
+                moveToPoint(dx,dy,dz,0)
+                ctx.moveTo(cx0, cy0);
+                ctx.lineTo(cx, cy);
+                ctx.stroke();
                 cx0=cx , cy0=cy
+            }
+        }else{
+            // 畫完放開
+            if(b0==1){
+                ctx.moveTo(cx0, cy0);
+                ctx.lineTo(cx, cy);
+                ctx.stroke();
+                cx0=cx , cy0=cy
+                moveToPoint(dx,dy,dz,0)
                 moveToPoint(dx,dy,dz-(-10),0)
+                moveToPoint(200,0,dz-(-10),0)
             }
             b0=0
         }
