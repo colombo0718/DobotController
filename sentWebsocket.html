@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test with Input</title>
+    <script type="text/javascript">
+        document.addEventListener("DOMContentLoaded", function() {
+            var ws = new WebSocket("ws://localhost:8764");
+
+            ws.onopen = function() {
+                console.log("Connected to the server");
+                // 禁用发送按钮直到连接建立
+                document.getElementById("send").disabled = false;
+            };
+
+            document.getElementById("send").onclick = function() {
+                var message = document.getElementById("message").value;
+                ws.send(message);
+                console.log("Message sent: " + message);
+            };
+
+            ws.onmessage = function(event) {
+                console.log("Received message: " + event.data);
+            };
+
+            ws.onclose = function() {
+                console.log("Disconnected from the server");
+                document.getElementById("send").disabled = true; // 重新禁用发送按钮
+            };
+
+            ws.onerror = function(error) {
+                console.log("WebSocket error: " + error);
+                document.getElementById("send").disabled = true; // 出错时禁用发送按钮
+            };
+        });
+    </script>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <input type="text" id="message" placeholder="Enter your message here" />
+    <button id="send" disabled>Send Message</button>
+    <p>Open the console to see log messages.</p>
+</body>
+</html>

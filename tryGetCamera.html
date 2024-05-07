@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<video id="video" width="640" height="480" autoplay hidden></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+
+<script>
+  var video = document.getElementById('video');
+
+  // 獲取用戶的媒體設備（這裡是視頻）
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+          video.srcObject = stream;
+          video.play();
+          console.log(video)
+      });
+  }
+
+
+  function getPixelRGB(x, y) {
+    // 從canvas獲取像素數據
+    var pixel = context.getImageData(x, y, 1, 1).data;
+    // pixel.data 包含 RGBA 值，這裡我們只返回 RGB
+    // console.log(pixel)
+    return {
+      r: pixel[0],
+      g: pixel[1],
+      b: pixel[2]
+    };
+  }
+
+  function drawTargetCircle() {
+    // 畫面正中間的坐標
+    var centerX = canvas.width / 2;
+    var centerY = canvas.height / 2;
+    var radius = 10; // 圓的半徑
+
+    context.beginPath();
+    context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+    context.fillStyle = 'transparent'; // 圓內部填充顏色
+    context.fill();
+    context.lineWidth = 2;
+    context.strokeStyle = 'red'; // 圓的邊框顏色
+    context.stroke();
+  }
+
+
+  function getColor(rgb) {
+    if (rgb.r >= 128 && rgb.g >= 128 && rgb.b >= 128) {
+        return 'W'; // White
+    } else if (rgb.r >= 128 && rgb.g < 128 && rgb.b < 128) {
+        return 'R'; // Red
+    } else if (rgb.r < 128 && rgb.g >= 128 && rgb.b < 128) {
+        return 'G'; // Green
+    } else if (rgb.r < 128 && rgb.g < 128 && rgb.b >= 128) {
+        return 'B'; // Blue
+    } else if (rgb.r >= 128 && rgb.g >= 128 && rgb.b < 128) {
+        return 'Y'; // Yellow
+    } else if (rgb.r >= 128 && rgb.g < 128 && rgb.b >= 128) {
+        return 'M'; // Magenta
+    } else if (rgb.r < 128 && rgb.g >= 128 && rgb.b >= 128) {
+        return 'C'; // Cyan
+    } else {
+        return 'K'; // Black
+    }
+}
+
+    // 將視頻畫面畫到Canvas上
+    var context = canvas.getContext('2d');
+    setInterval(function(){
+        context.drawImage(video, 0, 0, 640, 480);
+        
+
+        var centerX = canvas.width / 2;
+        var centerY = canvas.height / 2;
+
+        drawTargetCircle();
+
+        var rgb = getPixelRGB(centerX, centerY);
+        // console.log(`RGB at center (${centerX}, ${centerY}):`, rgb);
+        var color = getColor(rgb);
+        console.log(color)
+
+    }, 100); // 每100毫秒畫一次圖像到canvas
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Micro:bit WebUSB Example</title>
+</head>
+<body>
+    <button id="connect">Connect to micro:bit</button>
+    <button id="send">Send Message</button>
+    <pre id="output"></pre>
+
+    <script>
+        document.getElementById('connect').addEventListener('click', async () => {
+            if ('serial' in navigator) {
+                try {
+                    const port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 });
+
+                    const textEncoder = new TextEncoderStream();
+                    const writableStreamClosed = textEncoder.readable.pipeTo(port.writable);
+                    const writer = textEncoder.writable.getWriter();
+
+                    document.getElementById('send').addEventListener('click', () => {
+                        writer.write('hello A.');
+                    });
+
+                    while (port.readable) {
+                        const textDecoder = new TextDecoderStream();
+                        const readableStreamClosed = port.readable.pipeTo(textDecoder.writable);
+                        const reader = textDecoder.readable
+                            .getReader();
+
+                        try {
+                            while (true) {
+                                const { value, done } = await reader.read();
+                                // if (done) {
+                                //     // |reader| has been canceled.
+                                //     break;
+                                // }
+                                // Log the received value to the console.
+                                console.log(value);
+                                document.getElementById('output').textContent += value;
+                            }
+                        } catch (error) {
+                            console.error(error);
+                        } finally {
+                            reader.releaseLock();
+                        }
+                    }
+
+                } catch (error) {
+                    console.error('There was an error:', error);
+                }
+            } else {
+                console.log('Web Serial API not supported.');
+            }
+        });
+    </script>
+</body>
+</html>
