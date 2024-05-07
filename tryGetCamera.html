@@ -4,6 +4,7 @@
 
 <video id="video" width="640" height="480" autoplay hidden></video>
 <canvas id="canvas" width="640" height="480"></canvas>
+<div id="color"></div>
 
 <script>
   var video = document.getElementById('video');
@@ -45,7 +46,7 @@
     context.stroke();
   }
 
-
+  
   function getColor(rgb) {
     if (rgb.r >= 128 && rgb.g >= 128 && rgb.b >= 128) {
         return 'W'; // White
@@ -68,6 +69,7 @@
 
     // 將視頻畫面畫到Canvas上
     var context = canvas.getContext('2d');
+    var outputDiv = document.getElementById('color');
     setInterval(function(){
         context.drawImage(video, 0, 0, 640, 480);
         
@@ -80,6 +82,7 @@
         var rgb = getPixelRGB(centerX, centerY);
         // console.log(`RGB at center (${centerX}, ${centerY}):`, rgb);
         var color = getColor(rgb);
+        outputDiv.innerHTML = color;
         console.log(color)
 
     }, 100); // 每100毫秒畫一次圖像到canvas
