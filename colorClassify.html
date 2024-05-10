@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dobot Control via UART</title>
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay hidden></video>
+    <canvas id="canvas" width="640" height="480"></canvas>
+    <div id="color"></div>
+
+
+    <button id="connect">连接到Dobot</button>    
+    <button id="sendCommand" disabled>发送Home命令</button>
+    <button id="autoClassify" disabled>自動分類</button>
+
+
+    <div>
+        <button id="class1" disabled>分類1</button>
+        <button id="class2" disabled>分類2</button>
+        <button id="class3" disabled>分類3</button>
+        <button id="class4" disabled>分類4</button>
+    </div>
+
+    <script>
+        const connectButton = document.getElementById('connect');
+        const sendCommandButton = document.getElementById('sendCommand');
+        const autoClassifyButton = document.getElementById('autoClassify');
+        const class1Button = document.getElementById('class1');
+        const class2Button = document.getElementById('class2');
+        const class3Button = document.getElementById('class3');
+        const class4Button = document.getElementById('class4');
+        const color = document.getElementById('color');
+        
+        var port, writer;
+        var uartCommand
+
+        async function sliderOn() {    
+            uartCommand = [170, 170];
+            const length = 3;
+            const ID = 3;
+            const Ctrl = 1;
+            const param = 1;
+            const payload = [ID, Ctrl, param]
+            let Checksum = 256 - payload.reduce((a, b) => a + b, 0) & 0xff;
+            uartCommand.push(length);
+            uartCommand.push(...payload, Checksum);
+            console.log(uartCommand);
+
+            if (writer) {
+                const data = new Uint8Array(uartCommand); // 将您的命令字符串替换为具体的UART命令
+                await writer.write(data);
+                console.log('命令已发送');
+            }
+
+        }
+
+
+        async function connectSerial() {
+            if ('serial' in navigator) {
+                try {
+                    port = await navigator.serial.requestPort();
+                    await port.open({ baudRate: 115200 }); // 根据Dobot的波特率来设置
+                    writer = port.writable.getWriter();
+                    connectButton.disabled = true;
+                    sendCommandButton.disabled = false;
+                    autoClassifyButton.disabled = false;
+                    class1Button.disabled = false;
+                    class2Button.disabled = false;
+                    class3Button.disabled = false;
+                    class4Button.disabled = false;
+                    console.log('串行端口已连接');
+                    sliderOn()
+                } catch (e) {
+                    console.error('无法打开串行端口', e);
+                }
+            } else {
+                alert('您的浏览器不支持WebSerial API');
+            }
+        }
+
+        async function toPositionWithSlider(x,y,z,r,l) {
+            uartCommand = [170, 170];
+            const length = 23;
+            const ID = 86;
+            const Ctrl = 3;
+            const ptpmode = 2;
+
+            // 将浮点数转换为字节的函数
+            function floatToBytes(float) {
+                let buffer = new ArrayBuffer(4); // Float32需要4字节
+                let view = new DataView(buffer);
+                view.setFloat32(0, float, false); // 使用大端字节序
+                return Array.from(new Uint8Array(buffer)).reverse(); // 转换为字节数组并反转以匹配Python示例中的小端字节序
+            }
+
+            const Dx = floatToBytes(x);
+            const Dy = floatToBytes(y);
+            const Dz = floatToBytes(z);
+            const Dr = floatToBytes(r);
+            const Dl = floatToBytes(l);
+
+            const payload = [ID, Ctrl, ptpmode].concat(Dx, Dy, Dz, Dr, Dl);
+
+            let Checksum = 256 - payload.reduce((a, b) => a + b, 0) & 0xff;
+
+
+            uartCommand.push(length);
+            uartCommand.push(...payload, Checksum);
+
+            console.log( payload,uartCommand);
+
+            if (writer) {
+                const data = new Uint8Array(uartCommand); // 将您的命令字符串替换为具体的UART命令
+                await writer.write(data);
+                console.log('命令已发送');
+            }
+        }
+
+
+        async function sendHomeCommand() {
+            if (writer) {
+                // const data = new Uint8Array(uartCommand); // 将您的命令字符串替换为具体的UART命令
+                const data = new Uint8Array([170, 170, 6, 31, 3, 0, 0, 0, 0, 222]);
+                // toPositionWithSlider(180,0,   0,0,  0)
+                await writer.write(data);
+                console.log('命令已发送');
+            }
+        }
+
+        connectButton.addEventListener('click', connectSerial);
+        sendCommandButton.addEventListener('click', sendHomeCommand);
+
+
+        function intoClass1(distence){
+            toPositionWithSlider(180,0,   0,0,  0)
+            toPositionWithSlider(180,0,   0,0,  distence)
+            toPositionWithSlider(180,0,-130,0,  distence)
+            toPositionWithSlider(160,0,-130,0,  distence)
+            toPositionWithSlider(160,0,   0,0,  distence)
+            toPositionWithSlider(180,0,   0,0,  distence)
+            toPositionWithSlider(180,0,   0,0,  0)
+        }
+
+        class1Button.addEventListener('click', () => intoClass1(40+85*1));
+        class2Button.addEventListener('click', () => intoClass1(40+85*2));
+        class3Button.addEventListener('click', () => intoClass1(40+85*3));
+        class4Button.addEventListener('click', () => intoClass1(40+85*4));
+
+        function utoClaassify(){
+            var col=color.innerHTML
+            if (col=='R'){intoClass1(40+85*1)}
+            if (col=='Y'){intoClass1(40+85*2)}
+            if (col=='G' || col=='K'){intoClass1(40+85*3)}
+            if (col=='C'){intoClass1(40+85*4)}
+        }
+        autoClassifyButton.addEventListener('click', () => utoClaassify());
+
+
+        var video = document.getElementById('video');
+
+        // 獲取用戶的媒體設備（這裡是視頻）
+        if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+                video.srcObject = stream;
+                video.play();
+                console.log(video)
+            });
+        }
+
+
+        function getPixelRGB(x, y) {
+            // 從canvas獲取像素數據
+            var pixel = context.getImageData(x, y, 1, 1).data;
+            // pixel.data 包含 RGBA 值，這裡我們只返回 RGB
+            // console.log(pixel)
+            return {
+            r: pixel[0],
+            g: pixel[1],
+            b: pixel[2]
+            };
+        }
+
+        function drawTargetCircle() {
+            // 畫面正中間的坐標
+            var centerX = canvas.width / 2;
+            var centerY = canvas.height / 2;
+            var radius = 10; // 圓的半徑
+
+            context.beginPath();
+            context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+            context.fillStyle = 'transparent'; // 圓內部填充顏色
+            context.fill();
+            context.lineWidth = 2;
+            context.strokeStyle = 'red'; // 圓的邊框顏色
+            context.stroke();
+        }
+
+        function getColor(rgb) {
+            if (rgb.r >= 128 && rgb.g >= 128 && rgb.b >= 128) {
+                return 'W'; // White
+            } else if (rgb.r >= 128 && rgb.g < 128 && rgb.b < 128) {
+                return 'R'; // Red
+            } else if (rgb.r < 128 && rgb.g >= 128 && rgb.b < 128) {
+                return 'G'; // Green
+            } else if (rgb.r < 128 && rgb.g < 128 && rgb.b >= 128) {
+                return 'B'; // Blue
+            } else if (rgb.r >= 128 && rgb.g >= 128 && rgb.b < 128) {
+                return 'Y'; // Yellow
+            } else if (rgb.r >= 128 && rgb.g < 128 && rgb.b >= 128) {
+                return 'M'; // Magenta
+            } else if (rgb.r < 128 && rgb.g >= 128 && rgb.b >= 128) {
+                return 'C'; // Cyan
+            } else {
+                return 'K'; // Black
+            }
+        }
+
+            // 將視頻畫面畫到Canvas上
+            var context = canvas.getContext('2d');
+            var outputDiv = document.getElementById('color');
+            setInterval(function(){
+                context.drawImage(video, 0, 0, 640, 480);
+                
+
+                var centerX = canvas.width / 2;
+                var centerY = canvas.height / 2;
+
+                drawTargetCircle();
+
+                var rgb = getPixelRGB(centerX, centerY);
+                // console.log(`RGB at center (${centerX}, ${centerY}):`, rgb);
+                var color = getColor(rgb);
+                outputDiv.innerHTML = color;
+                // console.log(color)
+            }, 100); // 每100毫秒畫一次圖像到canvas
+        
+    </script>
+</body>
+</html>
